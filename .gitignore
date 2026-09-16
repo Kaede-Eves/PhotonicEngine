@@ -118,3 +118,9 @@ run/
 !gradle-wrapper.jar
 /lib/
 /start.bat
+
+# The 26.2 identity mappings are a build INPUT, not a build output: Minecraft 26.2 ships
+# deobfuscated, so there is nothing to download and loom.officialMojangMappings() fails.
+# See modules/versions/26_2/build.gradle.kts. Must be tracked despite the *.jar rule above,
+# or a fresh clone cannot configure the 26.2 module at all.
+!modules/versions/26_2/mappings/*.jar
