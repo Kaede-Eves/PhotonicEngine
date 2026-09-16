@@ -13,7 +13,11 @@ loom {
 }
 
 dependencies {
-    add("minecraft", "com.mojang:minecraft:1.21.11")
+    // Was hardcoded to "com.mojang:minecraft:1.21.11". photonics-common already uses the
+    // extension value; this one did not, so every version module past the first was handed
+    // Minecraft 1.21.11 while carrying its own mappings -- which surfaces as
+    // "Cannot remap access widener from namespace 'official'" rather than as a version mismatch.
+    add("minecraft", "com.mojang:minecraft:${phConfig.minecraft.get()}")
     phConfig._dependencyBlock.orNull?.execute(PhotonicsCommonDependenciesScope(this))
 
     val fabricLoader = _fabricLoader

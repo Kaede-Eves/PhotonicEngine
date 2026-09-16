@@ -1,6 +1,6 @@
 [versions]
 # Check for latest at https://fabricmc.net/develop/
-loom = "1.17.3"
+loom = "1.18.1"  # 26.2 needs 1.18+: earlier Loom cannot remap access wideners from the official namespace
 
 [plugins]
 loom-gradle = { id = "net.fabricmc.fabric-loom", version.ref = "loom" }
