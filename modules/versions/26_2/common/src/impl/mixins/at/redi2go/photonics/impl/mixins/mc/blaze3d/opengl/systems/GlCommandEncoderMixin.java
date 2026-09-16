@@ -23,15 +23,11 @@ import org.spongepowered.asm.mixin.Implements;
 import org.spongepowered.asm.mixin.Interface;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 
 import java.nio.ByteBuffer;
 
 @Mixin(GlCommandEncoder.class)
 public abstract class GlCommandEncoderMixin implements CommandEncoderBackend, ICommandEncoder {
-    @Shadow
-    private boolean inRenderPass;
-
     @Shadow
     @Final
     private GlDevice device;
@@ -40,15 +36,12 @@ public abstract class GlCommandEncoderMixin implements CommandEncoderBackend, IC
     @Final
     private int drawFbo;
 
-    @Unique
-    private void checkNotInRenderPass() {
-        if (inRenderPass)
-            throw new IllegalStateException("Close the existing render pass before creating a new one!");
-    }
-
     @Override
     public void ph$clearColorTexture(IGpuTexture<?> gpuTexture, Vector4fc clearColor) {
-        checkNotInRenderPass();
+        // 1.21.11 guarded this against an open render pass using GlCommandEncoder's inRenderPass
+        // flag. 26.2 dropped that field: a render pass is now an object handed out by
+        // createRenderPass and closed through submitRenderPass, so the encoder no longer tracks
+        // the state there is nothing left to check against.
 
         ((DirectStateAccessor) device.directStateAccess()).invokeBindFrameBufferTextures(drawFbo, ((IGlTexture) gpuTexture).handle(), 0, 0, 36160);
         GL11.glClearColor(clearColor.x(), clearColor.y(), clearColor.z(), clearColor.w());

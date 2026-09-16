@@ -8,7 +8,6 @@ import com.google.common.collect.ImmutableList;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.mojang.blaze3d.systems.RenderPass;
 import net.irisshaders.iris.gl.program.ComputeProgram;
 import net.irisshaders.iris.gl.program.Program;
 import net.irisshaders.iris.pipeline.CompositePass;
@@ -30,7 +29,7 @@ public abstract class CompositeRendererMixin {
 
     @Shadow
     @Final
-    private ImmutableList<RenderPass> passes;
+    private ImmutableList<?> passes;
 
     @WrapOperation(
             method = "<init>",
@@ -100,23 +99,32 @@ public abstract class CompositeRendererMixin {
         original.call(instance);
     }
 
+    /**
+     * Unbinds a composite pass' framebuffer once the pass has drawn.
+     *
+     * <p>Iris on 26.2 no longer issues this draw through a Blaze3D RenderPass -- it binds the
+     * index buffer and calls glDrawElements directly -- so there is no RenderPass left to ask for
+     * the pass being drawn. The loop index gives the same answer, and it is how the rest of this
+     * mixin already locates the current pass.
+     */
     @WrapOperation(
             method = "renderAll",
             at = @At(
                     value = "INVOKE",
-                    target = "Lcom/mojang/blaze3d/systems/RenderPass;drawIndexed(IIII)V"
+                    target = "Lcom/mojang/blaze3d/opengl/GlStateManager;_drawElements(IIIJ)V"
             )
     )
-    public void renderAll(
-            RenderPass instance,
-            int i,
-            int j,
-            int k,
-            int l,
-            Operation<Void> original
+    private void photonics$unbindAfterPassDraw(
+            int mode,
+            int count,
+            int type,
+            long indices,
+            Operation<Void> original,
+            @Local(name = "i") int i
     ) {
-        original.call(instance, i, j, k, l);
-        ((CompositeRendererPassExt) instance.iris$getCustomPass())
+        original.call(mode, count, type, indices);
+
+        ((CompositeRendererPassExt) passes.get(i))
                 .getFramebuffer()
                 .ifPresent(e -> ((InternalIrisFramebuffer) e).unbind());
     }
