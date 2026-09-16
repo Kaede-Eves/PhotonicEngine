@@ -26,7 +26,7 @@ public interface IMinecraftImpl {
     static Vector3d getCameraPos() {
         Vec3 position = net.minecraft.client.Minecraft.getInstance()
                 .gameRenderer
-                .getMainCamera()
+                .mainCamera()
                 .position();
 
         return new Vector3d(position.x, position.y, position.z);

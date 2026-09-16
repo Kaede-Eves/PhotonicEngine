@@ -12,7 +12,7 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.opengl.GlCommandEncoder;
 import com.mojang.blaze3d.opengl.GlDevice;
 import com.mojang.blaze3d.opengl.GlStateManager;
-import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.CommandEncoderBackend;
 import org.apache.commons.lang3.NotImplementedException;
 import org.joml.Vector2ic;
 import org.joml.Vector3ic;
@@ -28,7 +28,7 @@ import org.spongepowered.asm.mixin.Unique;
 import java.nio.ByteBuffer;
 
 @Mixin(GlCommandEncoder.class)
-public abstract class GlCommandEncoderMixin implements CommandEncoder, ICommandEncoder {
+public abstract class GlCommandEncoderMixin implements CommandEncoderBackend, ICommandEncoder {
     @Shadow
     private boolean inRenderPass;
 
@@ -53,7 +53,9 @@ public abstract class GlCommandEncoderMixin implements CommandEncoder, ICommandE
         ((DirectStateAccessor) device.directStateAccess()).invokeBindFrameBufferTextures(drawFbo, ((IGlTexture) gpuTexture).handle(), 0, 0, 36160);
         GL11.glClearColor(clearColor.x(), clearColor.y(), clearColor.z(), clearColor.w());
         GlStateManager._disableScissorTest();
-        GlStateManager._colorMask(true, true, true, true);
+        // 26.2: _colorMask takes a per-draw-buffer BITMASK (bit 0 = R .. bit 3 = A),
+        // not four booleans. 0xF enables all four channels.
+        GlStateManager._colorMask(0xF);
         GlStateManager._clear(16384);
         GlStateManager._glFramebufferTexture2D(36160, 36064, 3553, 0, 0);
         GlStateManager._glBindFramebuffer(36160, 0);
@@ -71,12 +73,13 @@ public abstract class GlCommandEncoderMixin implements CommandEncoder, ICommandE
 
     @Override
     public IGpuBuffer.MappedView ph$mapBuffer(IGpuBuffer buffer, boolean readable, boolean writeable) {
-        return (IGpuBuffer.MappedView) mapBuffer((GpuBuffer) buffer, readable, writeable);
+        // 26.2 moved mapBuffer off CommandEncoder onto the buffer itself.
+        return (IGpuBuffer.MappedView) (Object) ((GpuBuffer) buffer).map(readable, writeable);
     }
 
     @Override
     public IGpuBuffer.MappedView ph$mapBuffer(IGpuBufferSlice bufferSlice, boolean readable, boolean writeable) {
-        return (IGpuBuffer.MappedView) mapBuffer((GpuBufferSlice) (Object) bufferSlice, readable, writeable);
+        return (IGpuBuffer.MappedView) (Object) ((GpuBufferSlice) (Object) bufferSlice).map(readable, writeable);
     }
 
     @Override

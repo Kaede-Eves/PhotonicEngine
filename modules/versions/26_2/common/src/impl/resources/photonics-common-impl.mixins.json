@@ -26,8 +26,6 @@
     "mc.blaze3d.opengl.buffer.GlMappedViewMixin",
     "mc.blaze3d.opengl.buffer.ImmutableBufferStorageMixin",
     "mc.blaze3d.opengl.InternalTextureFormatMixin",
-
-
     "mc.commands.arguments.blocks.BlockStateParser$BlockResultMixin",
     "mc.commands.arguments.blocks.BlockStateParser$TagResultMixin",
     "mc.commands.arguments.blocks.IBlockStateParserImpl",
@@ -55,6 +53,7 @@
     "mc.world.level.block.state.StateDefinitionMixin"
   ],
   "mixins": [
+    "mc.blaze3d.systems.GpuDeviceAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

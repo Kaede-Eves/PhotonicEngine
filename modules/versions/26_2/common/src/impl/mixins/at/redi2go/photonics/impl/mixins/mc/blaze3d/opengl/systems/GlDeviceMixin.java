@@ -18,7 +18,7 @@ import at.redi2go.photonics.impl.mc.blaze3d.opengl.buffer.GlBufferHeap;
 import at.redi2go.photonics.impl.mc.blaze3d.opengl.textures.GlTexture2D;
 import at.redi2go.photonics.impl.mc.blaze3d.opengl.textures.GlTexture3D;
 import com.mojang.blaze3d.opengl.GlDevice;
-import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.blaze3d.systems.GpuDeviceBackend;
 import com.mojang.blaze3d.textures.AddressMode;
 import com.mojang.blaze3d.textures.FilterMode;
 import org.joml.Vector2fc;
@@ -33,7 +33,7 @@ import java.util.OptionalDouble;
 import java.util.function.Supplier;
 
 @Mixin(GlDevice.class)
-public abstract class GlDeviceMixin implements GpuDevice, GpuDeviceImpl, IGpuDevice {
+public abstract class GlDeviceMixin implements GpuDeviceBackend, GpuDeviceImpl, IGpuDevice {
     @Override
     public ICommandEncoder ph$createCommandEncoder() {
         return (ICommandEncoder) createCommandEncoder();

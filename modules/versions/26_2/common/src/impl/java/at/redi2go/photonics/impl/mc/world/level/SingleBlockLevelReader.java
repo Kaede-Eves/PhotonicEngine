@@ -105,7 +105,8 @@ public class SingleBlockLevelReader implements LevelReader {
         throw new UnsupportedOperationException("environmentAttributes");
     }
 
-    @Override
+    // 26.2 removed getShade from the level-reader interfaces, so this no longer overrides
+    // anything. Kept (without @Override) rather than deleted, in case core still calls it.
     public float getShade(@NonNull Direction direction, boolean bl) {
         throw new UnsupportedOperationException("getShade");
     }

@@ -50,11 +50,14 @@ public abstract class BlockStateMixin extends BlockBehaviour.BlockStateBase impl
         return getValue((Property<T>) property);
     }
 
+    // 26.2: BlockState(Block, Property<?>[], Comparable<?>[]) -- the property map became two
+    // parallel arrays and the MapCodec parameter is gone. This constructor exists only so the
+    // mixin compiles; it is never invoked.
     private BlockStateMixin(
             Block block,
-            Reference2ObjectArrayMap<Property<?>, Comparable<?>> reference2ObjectArrayMap,
-            MapCodec<BlockState> mapCodec
+            Property<?>[] properties,
+            Comparable<?>[] values
     ) {
-        super(block, reference2ObjectArrayMap, mapCodec);
+        super(block, properties, values);
     }
 }

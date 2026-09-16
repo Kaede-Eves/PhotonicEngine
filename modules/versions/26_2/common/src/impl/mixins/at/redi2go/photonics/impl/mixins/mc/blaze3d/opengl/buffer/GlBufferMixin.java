@@ -4,6 +4,7 @@ import at.redi2go.photonics.api.gpu.buffers.BufferUsage;
 import at.redi2go.photonics.api.gpu.buffers.IGpuBuffer;
 import at.redi2go.photonics.api.gpu.buffers.IGpuBufferSlice;
 import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.opengl.GlBuffer;
 import org.spongepowered.asm.mixin.Implements;
 import org.spongepowered.asm.mixin.Interface;
