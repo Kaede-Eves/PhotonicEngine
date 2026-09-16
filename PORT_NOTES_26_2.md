@@ -159,3 +159,43 @@ nothing useful. Then:
 
 The summary showed 291329 GC phase events in 45 seconds, and the allocation
 samples gave the exact stack, with 275 GB attributed to one call site.
+
+## Both packs default to the renderer that does not exist
+
+Complementary's `lib/common.glsl` has `#define PHOTONICS_LIGHTING_MODE 1`, where
+1 is BASIC. BSL's bundled patch has `#define LIGHTING_MODE BASIC`. Both map to
+`SharpPipeline`, which is empty, so a fresh install with either pack renders no
+Photonics lighting and looks broken until the user finds the option and picks
+ReSTIR. Anyone testing 0.4 will hit this first.
+
+Confirming the active renderer is one line of the log now:
+
+    Photonics renderer: RESTIR
+    Photonics renderer: BASIC
+    Photonics is disabled for this shaderpack; no pipeline created
+
+That caught a case where the setting had fallen back to the pack default and the
+report was "ray tracing stopped working".
+
+## Open lead: framebuffers resize, pass viewports do not
+
+Going windowed -> fullscreen leaves a hard seam with the lighting covering only a
+rectangle the size of the old window. The lighting framebuffers do resize --
+`FramebufferSize.Relative` reads the live window size and `SingleFramebuffer.bind`
+recalculates -- so the mismatch is on the viewport side.
+
+`PhotonicsRenderer.recalculateSizes()` overrides Iris' `CompositeRenderer` method
+and pushes the framebuffer size into each pass' viewWidth/viewHeight. **Nothing
+calls it.** Iris calls recalculateSizes on its own beginRenderer, prepareRenderer
+and deferredRenderer fields; Photonics' renderers live in a `@Unique` phRenderers
+list the pipeline mixin owns, which Iris cannot see.
+
+Calling it from Iris' own resize path was tried and **made rendering worse** --
+with ReSTIR active the result looked like Photonics was not running at all. So
+the passes' viewWidth/viewHeight are evidently expected to stay at Iris' render
+target size rather than the Photonics framebuffer size: Iris passes them to
+shaders as uniforms, so at a render scale below 1 substituting the smaller buffer
+size changes the shader math. That attempt was reverted and never committed.
+
+Whatever the fix is, it is not "call the dead method". Worth asking upstream what
+`updateSize` was meant for before trying again.
