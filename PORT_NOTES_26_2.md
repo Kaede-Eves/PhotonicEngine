@@ -52,3 +52,55 @@ captures the Kotlin script object in its `from(...) { into(...) }` blocks, which
 Gradle 9.7.1 refuses to serialise. Build with `--no-configuration-cache` until
 that is restructured. Only the version modules past the first are affected,
 because the `from(...)` blocks are guarded by `project.name != "common"`.
+
+## Upstream 0.4 gaps found while testing on 26.2
+
+None of these are 26.2 porting problems. Each was checked against the 1.21.11
+module or the shipped jars before being classified.
+
+**Sharp / Basic lighting is not implemented.** `SharpPipeline`'s constructor
+calls `super(...)` and nothing else -- the same shape as `OffPipeline` -- and
+its shader directory holds one file against ReSTIR's twenty-two. `BASIC` and
+`SHARP` both map to it, so selecting either is identical to selecting Off.
+ReSTIR is the only working renderer in 0.4.
+
+**BSL has no working path in 0.4.** Two independent reasons. Its bundled patch
+still declares `"supportedVersions": ["0.3.5"]` and defaults to
+`#define LIGHTING_MODE BASIC`, which selects the unimplemented pipeline. And the
+patched `shaders.properties` never reaches Iris: Photonics patches files as they
+pass through the include graph, but `ShaderPack` reads shaders.properties
+straight off disk with `loadProperties(Path, String)`. Iris 1.10.5 does the same
+thing and neither version module has a hook for it, so the Photonics options
+cannot appear in BSL's menu on either Minecraft version. Test with
+Complementary.
+
+**Shaderpack properties are parsed after the include graph.** Iris builds the
+graph before reading shader.properties, so Photonics' own shader files are read
+while `IrisManager`'s properties are still empty and `getPropertiesOrThrow`
+threw, which Iris reported as an unloadable pack. Reproduces byte for byte on
+1.21.11. `isPhotonicsEnabled` now answers from the patcher when properties are
+not parsed yet.
+
+**The voxel heap is fixed at a size that does not fit render distance 16.** See
+the commit that raised it. Two further things worth knowing before touching it:
+`GlBufferHeap.close()` only closes the GPU buffer and leaves its direct
+ByteBuffer to the collector, and a pipeline reload constructs the new heap
+before the old one is gone -- so a reload transiently needs twice the heap in
+both VRAM and native memory. Unmeasured, but it scales with whatever size is
+chosen.
+
+## Testing without round-tripping through a human
+
+`runClient` accepts program arguments, so the dev client can enter a world on
+its own:
+
+    ./gradlew :modules:versions:mc262:fabric:runClient \
+        --args='--quickPlaySingleplayer "New World"'
+
+Both of the crashes that only appeared in-world, and the heap measurement, came
+from this. Two cautions learned the hard way. Do not `taskkill /F /IM java.exe`
+to free the build -- it kills whatever client the user is testing in, and from
+their side it is indistinguishable from a crash. And do not push an
+instrumented build to a client someone is using: raising the heap to 2 GiB to
+measure demand overflowed `Math.toIntExact` and crashed every pipeline
+creation, which looked like a shaderpack-switching bug for several rounds.
