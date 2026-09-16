@@ -40,7 +40,15 @@ public abstract class PhotonicsPipeline extends AbstractRenderingComponent {
         registerResource(atlasDownloader);
         var sectionManager = registerComponent(new SectionManager(Minecraft::getRenderDistance));
 
-        var worldAllocator = registerComponent(new BufferWorldAllocator(1 << 29));
+        // 512 MiB (the previous value) is not enough for render distance 16: measured, the voxel
+        // heap passed it about a minute after world load and was still climbing at 576 MiB. Once
+        // it fills, every voxel allocation fails and the ray tracer quietly loses the world --
+        // lighting reverts to looking vanilla mid-session.
+        //
+        // This is a fixed number rather than one scaled from render distance, so it is generous at
+        // short distances and would still be too small at 32. GlBufferHeap mirrors this in a direct
+        // ByteBuffer sized by Math.toIntExact, which also caps any heap just under 2 GiB.
+        var worldAllocator = registerComponent(new BufferWorldAllocator(1 << 30));
         var paletteTexture = registerComponent(new BufferPaletteTexture(2048, 600));
 
         var worldRegistry = new WorldRegistry(worldAllocator, paletteTexture, atlasDownloader);
