@@ -12,6 +12,7 @@
 
     "iris.IncludeGraphMixin",
     "iris.ShaderPackMixin",
+    "iris.ShaderPackPropertiesMixin",
     "iris.ShaderPackAccessor",
     "iris.ShaderPropertiesMixin",
     "iris.extension.LevelRendererMixin",
