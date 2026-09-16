@@ -9,8 +9,6 @@
     "mc.PropertyMixin",
     "mc.IMinecraftImpl",
     "mc.blaze3d.common.systems.IRenderSystemImpl",
-    "mc.blaze3d.common.systems.GpuDeviceAccessor",
-    "mc.blaze3d.common.systems.CommandEncoderAccessor",
     "mc.blaze3d.common.buffers.GpuBufferSliceMixin",
     "mc.blaze3d.common.textures.AddressModeMixin",
     "mc.blaze3d.common.textures.IAddressModeImpl",

@@ -45,6 +45,8 @@
     "meshing.ReloadableTextureMixin",
     "meshing.DynamicTextureMixin",
     "meshing.RenderTypeFeatureRendererMixin",
+    "meshing.OffThreadFeatureRendererMixin$Particles",
+    "meshing.OffThreadFeatureRendererMixin$Gizmos",
     "meshing.OuterWrappedRenderTypeAccessor"
   ],
   "mixins": [

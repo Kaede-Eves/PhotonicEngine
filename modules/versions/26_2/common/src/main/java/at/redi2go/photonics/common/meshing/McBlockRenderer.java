@@ -1,5 +1,8 @@
 package at.redi2go.photonics.common.meshing;
 
+import net.minecraft.client.renderer.RenderBuffers;
+import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
+import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.client.renderer.block.FluidRenderer;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
@@ -65,8 +68,32 @@ public class McBlockRenderer {
 
     private final FluidRenderer fluidRenderer = new FluidRenderer(modelManager.getFluidStateModelSet());
 
-    private final LevelRenderState levelRenderState = new LevelRenderState();
     private final SubmitNodeStorage submitNodeStorage = new SubmitNodeStorage();
+
+    /**
+     * Photonics' own render state and feature dispatcher, kept separate from the game's.
+     *
+     * <p>26.2 no longer takes buffer sources as constructor arguments, which made sharing the
+     * game's dispatcher look reasonable -- but a dispatcher owns a single PreparedFrame, and
+     * meshing runs inside the game's frame, so reusing it re-enters that frame and throws
+     * "PreparedFrame already in use". Frame isolation, not the buffer sources, is why this is a
+     * separate instance.
+     *
+     * <p>One worker is enough: a block is meshed on one thread at a time. The lightmap still comes
+     * from the game's GameRenderer, because prepareFrame reads it from there rather than from this
+     * state; only the options come from ours, and those are populated eagerly.
+     */
+    private final GameRenderState gameRenderState = new GameRenderState();
+    private final LevelRenderState levelRenderState = gameRenderState.levelRenderState;
+
+    private final RenderBuffers renderBuffers = new RenderBuffers(1);
+    private final FeatureRenderDispatcher featureRenderDispatcher = new FeatureRenderDispatcher(
+            renderBuffers,
+            modelManager,
+            Minecraft.getInstance().getAtlasManager(),
+            Minecraft.getInstance().font,
+            gameRenderState
+    );
 
     private final SimpleMeshState.HashStorage hashStorage = new SimpleMeshState.HashStorage();
 
@@ -264,12 +291,13 @@ public class McBlockRenderer {
             renderer.submit(renderState, poseStack, submitNodeStorage, levelRenderState.cameraRenderState);
             poseStack.popPose();
 
-            // 26.2's dispatcher owns its buffers rather than taking them as constructor arguments,
-            // so there is nothing to gain from building a second one -- capture and feature
-            // suppression are handled by RenderTypeFeatureRendererMixin instead, which is inert
-            // whenever BlockBuilderCapture has no target.
-            Minecraft.getInstance().gameRenderer.featureRenderDispatcher()
-                    .renderAllFeatures(submitNodeStorage);
+            // Prepare only, never execute. Preparing is where the feature renderers build their
+            // geometry, and so where RenderTypeFeatureRendererMixin diverts it into the block
+            // builder; executing is the actual drawing, which is both pointless for a voxelizer
+            // and invalid on a chunk compiler thread. renderAllFeatures would do both.
+            try (var frame = featureRenderDispatcher.prepareFrame(submitNodeStorage)) {
+                // The geometry has already landed in the block builder by this point.
+            }
         } finally {
             BlockBuilderCapture.end();
         }

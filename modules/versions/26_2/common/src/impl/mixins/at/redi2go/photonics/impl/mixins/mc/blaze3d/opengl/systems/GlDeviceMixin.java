@@ -17,7 +17,6 @@ import at.redi2go.photonics.impl.mc.blaze3d.opengl.GlTextureFormats;
 import at.redi2go.photonics.impl.mc.blaze3d.opengl.buffer.GlBufferHeap;
 import at.redi2go.photonics.impl.mc.blaze3d.opengl.textures.GlTexture2D;
 import at.redi2go.photonics.impl.mc.blaze3d.opengl.textures.GlTexture3D;
-import at.redi2go.photonics.impl.mixins.mc.blaze3d.common.systems.CommandEncoderAccessor;
 import com.mojang.blaze3d.opengl.GlDevice;
 import com.mojang.blaze3d.systems.GpuDeviceBackend;
 import com.mojang.blaze3d.textures.AddressMode;
@@ -37,9 +36,10 @@ import java.util.function.Supplier;
 public abstract class GlDeviceMixin implements GpuDeviceBackend, GpuDeviceImpl, IGpuDevice {
     @Override
     public ICommandEncoder ph$createCommandEncoder() {
-        // Same unwrapping as the device: createCommandEncoder hands back 26.2's CommandEncoder
-        // wrapper, while the duck interface lives on GlCommandEncoder behind it.
-        return (ICommandEncoder) ((CommandEncoderAccessor) createCommandEncoder()).photonics$backend();
+        // No unwrapping here, unlike the device: this mixin is already on the backend, and
+        // GlDevice.createCommandEncoder returns a CommandEncoderBackend -- the GlCommandEncoder
+        // itself -- rather than 26.2's public CommandEncoder wrapper.
+        return (ICommandEncoder) createCommandEncoder();
     }
 
     @Override
