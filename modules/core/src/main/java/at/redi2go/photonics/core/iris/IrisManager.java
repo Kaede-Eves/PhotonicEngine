@@ -105,6 +105,16 @@ public class IrisManager {
                 handheldItemSupplierSupplier,
                 irisPipeline
         );
+
+        // Say plainly whether Photonics is doing anything for this pack. Without it the only way
+        // to answer "is Photonics even running?" is to read the pack's properties and infer, which
+        // is guesswork when a pack decides enablement itself -- Complementary sets
+        // photonics.enabled from its own lighting mode, so selecting Off there removes Photonics
+        // from the frame entirely rather than picking the OFF renderer.
+        if (activePipeline == null)
+            Photonics.LOGGER.info("Photonics is disabled for this shaderpack; no pipeline created");
+        else
+            Photonics.LOGGER.info("Photonics renderer: {}", activeProperties.getRenderer());
     }
 
     public static void onRender() {
