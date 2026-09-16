@@ -7,7 +7,7 @@ import at.redi2go.photonics.core.rendering.world.bakery.BlockBuilder;
 import at.redi2go.photonics.core.rendering.world.bakery.BlockMesher;
 import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import org.joml.Vector3i;
 
@@ -16,12 +16,10 @@ public class MinecraftBlockMesher implements BlockMesher<McMeshState> {
 
     @Override
     public void setup() {
-        ModelBlockRenderer.enableCaching();
     }
 
     @Override
     public void teardown() {
-        ModelBlockRenderer.clearCache();
     }
 
     @Override

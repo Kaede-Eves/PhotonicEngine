@@ -1,5 +1,6 @@
 package at.redi2go.photonics.common.iris.pipeline.framebuffer;
 
+import net.irisshaders.iris.mixinterface.RenderTargetInterface;
 import at.redi2go.photonics.core.iris.pipeline.texture.ISamplerHolder;
 import at.redi2go.photonics.impl.mc.blaze3d.opengl.textures.IGlTexture;
 import com.google.common.collect.ImmutableList;
@@ -59,7 +60,10 @@ public class SingleFramebuffer extends GlFramebuffer implements InternalIrisFram
         int width = Minecraft.getInstance().getWindow().getWidth();
         int height = Minecraft.getInstance().getWindow().getHeight();
         GL11.glViewport(0, 0, width, height);
-        Minecraft.getInstance().getMainRenderTarget().iris$bindFramebuffer();
+        // 26.2 moved the main target off Minecraft onto GameRenderer, and Iris 1.11.2 declares
+        // iris$bindFramebuffer on RenderTargetInterface rather than on Blaze3dRenderTargetExt.
+        ((RenderTargetInterface) Minecraft.getInstance().gameRenderer.mainRenderTarget())
+                .iris$bindFramebuffer();
     }
 
     @Override

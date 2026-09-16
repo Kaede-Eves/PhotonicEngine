@@ -1,29 +1,26 @@
 package at.redi2go.photonics.common.meshing;
 
+import net.minecraft.client.renderer.block.FluidRenderer;
+import net.minecraft.client.renderer.block.ModelBlockRenderer;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.resources.model.ModelManager;
 import at.redi2go.photonics.api.mc.Id;
-import at.redi2go.photonics.common.BlockRenderDispatcherExt;
 import at.redi2go.photonics.common.iris.IrisUtil;
-import at.redi2go.photonics.common.meshing.impl.BlockBuilderBufferSource;
+import at.redi2go.photonics.common.meshing.impl.BlockBuilderCapture;
 import at.redi2go.photonics.common.meshing.impl.BlockSetBuilder;
-import at.redi2go.photonics.common.meshing.impl.EmptyBufferSource;
-import at.redi2go.photonics.common.meshing.impl.EmptyOutlineBufferSource;
-import at.redi2go.photonics.common.meshing.impl.FeatureRendererExt;
 import at.redi2go.photonics.core.rendering.world.bakery.BlockBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeStorage;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
-import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
-import net.minecraft.client.renderer.state.LevelRenderState;
+import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -45,34 +42,33 @@ public class McBlockRenderer {
     private static final Set<Fluid> WHITELISTED_FLUIDS = Set.of(Fluids.LAVA, Fluids.FLOWING_LAVA);
 
     private final RandomSource randomSource = RandomSource.create();
-    private final BlockRenderDispatcher blockRenderer = Minecraft.getInstance().getBlockRenderer();
     private final PoseStack poseStack = new PoseStack();
 
-    private final BlockBuilderBufferSource bufferSource = new BlockBuilderBufferSource();
+    // 26.2 removed BlockRenderDispatcher and Minecraft.getBlockRenderer() entirely. Models, fluid
+    // models and block colours all come off ModelManager now.
+    private final ModelManager modelManager = Minecraft.getInstance().getModelManager();
+
+    /**
+     * Our own model renderer rather than the game's.
+     *
+     * <p>Ambient occlusion and culling became CONSTRUCTOR flags in 26.2 -- tesselateBlock branches
+     * internally to tesselateAmbientOcclusion or tesselateFlat -- so 1.21.11's explicit
+     * tesselateWithoutAO call is expressed here instead. AO stays off because the ray tracer
+     * computes its own occlusion and baked AO would darken twice; culling stays off because a
+     * voxelizer wants every face, not just the ones visible from outside.
+     */
+    private final ModelBlockRenderer modelRenderer = new ModelBlockRenderer(
+            false,
+            false,
+            Minecraft.getInstance().getBlockColors()
+    );
+
+    private final FluidRenderer fluidRenderer = new FluidRenderer(modelManager.getFluidStateModelSet());
 
     private final LevelRenderState levelRenderState = new LevelRenderState();
     private final SubmitNodeStorage submitNodeStorage = new SubmitNodeStorage();
-    private final FeatureRenderDispatcher featureRenderDispatcher = new FeatureRenderDispatcher(
-            submitNodeStorage,
-            blockRenderer,
-            bufferSource,
-            Minecraft.getInstance().getAtlasManager(),
-            EmptyOutlineBufferSource.INSTANCE,
-            EmptyBufferSource.INSTANCE,
-            Minecraft.getInstance().font
-    );
 
     private final SimpleMeshState.HashStorage hashStorage = new SimpleMeshState.HashStorage();
-
-    public McBlockRenderer() {
-        var featureRenderer = (FeatureRendererExt) featureRenderDispatcher;
-
-        featureRenderer.setRenderShadows(false);
-        featureRenderer.setRenderFlames(false);
-        featureRenderer.setRenderNametags(false);
-        featureRenderer.setRenderText(false);
-        featureRenderer.setRenderParticles(false);
-    }
 
     public McMeshState extractMeshState(
             Vector3i blockChunkOffset,
@@ -86,12 +82,12 @@ public class McBlockRenderer {
         int blockId = IrisUtil.getBlockId(blockState);
         FluidState fluidState = blockState.getFluidState();
 
-        List<BlockModelPart> parts;
+        List<BlockStateModelPart> parts;
         if (blockState.getRenderShape() == RenderShape.MODEL) {
             parts = new ArrayList<>();
 
             randomSource.setSeed(blockState.getSeed(blockPos));
-            blockRenderer.getBlockModel(blockState).collectParts(randomSource, parts);
+            modelManager.getBlockStateModelSet().get(blockState).collectParts(randomSource, parts);
         } else parts = List.of();
 
         if (blockState.hasBlockEntity()) return new DynamicMeshState(blockId, fluidState, parts);
@@ -143,7 +139,7 @@ public class McBlockRenderer {
             );
         }
 
-        List<BlockModelPart> parts = meshState.blockModel();
+        List<BlockStateModelPart> parts = meshState.blockModel();
         if (!parts.isEmpty()) {
             submitBlock(
                     pos,
@@ -171,7 +167,15 @@ public class McBlockRenderer {
                 -(blockPos.getZ() & 15)
         );
 
-        blockRenderer.renderLiquid(blockPos, blockAndTintGetter, (VertexConsumer) builder, blockState, fluidState);
+        // 26.2: fluids go through FluidRenderer, whose Output still hands back a VertexConsumer --
+        // so this path keeps its shape, it just gets reached differently.
+        fluidRenderer.tesselate(
+                blockAndTintGetter,
+                blockPos,
+                layer -> (VertexConsumer) builder,
+                blockState,
+                fluidState
+        );
     }
 
     private void submitBlock(
@@ -179,27 +183,26 @@ public class McBlockRenderer {
             BlockState blockState,
             BlockAndTintGetter blockAndTintGetter,
             BlockBuilder builder,
-            List<BlockModelPart> parts
+            List<BlockStateModelPart> parts
     ) {
         builder.useAtlas(BLOCK_ATLAS);
         builder.useOffset(0f, 0f, 0f);
 
-        poseStack.pushPose();
-
-        ((BlockRenderDispatcherExt) blockRenderer)
-                .photonics$modelBlockRenderer()
-                .tesselateWithoutAO(
-                        blockAndTintGetter,
-                        parts,
-                        blockState,
-                        pos,
-                        poseStack,
-                        (VertexConsumer) builder,
-                        false,
-                        OverlayTexture.NO_OVERLAY
-                );
-
-        poseStack.popPose();
+        // 26.2 emits whole BakedQuads into a BlockQuadOutput instead of streaming vertices into a
+        // VertexConsumer, and takes the BlockStateModel rather than a parts list -- there is no
+        // longer any way to tesselate a subset. Parts are still collected in extractMeshState, but
+        // only for the dedup hash.
+        modelRenderer.tesselateBlock(
+                new BlockQuadOutputAdapter(builder),
+                0f,
+                0f,
+                0f,
+                blockAndTintGetter,
+                pos,
+                blockState,
+                modelManager.getBlockStateModelSet().get(blockState),
+                blockState.getSeed(pos)
+        );
     }
 
     private static final Set<Block> FULL_BLOCK_ENTITY_REQUIRED_FOR = new BlockSetBuilder()
@@ -235,7 +238,7 @@ public class McBlockRenderer {
             BlockBuilder builder
     ) {
         builder.useOffset(0f, 0f, 0f);
-        bufferSource.setBlockBuilder(builder);
+        BlockBuilderCapture.begin(builder);
 
         levelRenderState.reset();
 
@@ -261,9 +264,14 @@ public class McBlockRenderer {
             renderer.submit(renderState, poseStack, submitNodeStorage, levelRenderState.cameraRenderState);
             poseStack.popPose();
 
-            featureRenderDispatcher.renderAllFeatures();
+            // 26.2's dispatcher owns its buffers rather than taking them as constructor arguments,
+            // so there is nothing to gain from building a second one -- capture and feature
+            // suppression are handled by RenderTypeFeatureRendererMixin instead, which is inert
+            // whenever BlockBuilderCapture has no target.
+            Minecraft.getInstance().gameRenderer.featureRenderDispatcher()
+                    .renderAllFeatures(submitNodeStorage);
         } finally {
-            bufferSource.setBlockBuilder(null);
+            BlockBuilderCapture.end();
         }
     }
 }

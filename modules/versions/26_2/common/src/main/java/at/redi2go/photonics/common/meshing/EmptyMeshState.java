@@ -1,6 +1,6 @@
 package at.redi2go.photonics.common.meshing;
 
-import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 
@@ -24,7 +24,7 @@ public class EmptyMeshState implements McMeshState {
     }
 
     @Override
-    public List<BlockModelPart> blockModel() {
+    public List<BlockStateModelPart> blockModel() {
         return List.of();
     }
 

@@ -5,7 +5,6 @@
   "minVersion": "0.8",
   "client": [
     "InventoryAccessor",
-    "BlockRenderDispatcherMixin",
 
     "iris.AbsolutePackPathMixin",
     "iris.IPathPackImpl",
@@ -32,7 +31,7 @@
     "iris.pipeline.passes.composite.CompositeRendererAccessor",
     "iris.pipeline.passes.composite.CompositePassMixin",
     "iris.pipeline.passes.FinalPassRendererMixin",
-    "iris.pipeline.passes.GlProgramMixin",
+    "iris.pipeline.passes.GlCommandEncoderMixin",
     "iris.pipeline.passes.ShadowCompositeRendererMixin",
     "iris.pipeline.uniforms.CommonUniformsMixin",
     "iris.pipeline.sampler.SamplerHolderMixin",
@@ -45,7 +44,7 @@
     "meshing.TextureSetupAccessor",
     "meshing.ReloadableTextureMixin",
     "meshing.DynamicTextureMixin",
-    "meshing.FeatureRenderDispatcherMixin",
+    "meshing.RenderTypeFeatureRendererMixin",
     "meshing.OuterWrappedRenderTypeAccessor"
   ],
   "mixins": [

@@ -13,7 +13,7 @@ import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.TextureFormat;
+import com.mojang.blaze3d.GpuFormat;
 import it.unimi.dsi.fastutil.Pair;
 import net.irisshaders.iris.gl.texture.TextureAccess;
 import net.irisshaders.iris.pbr.texture.PBRTextureHolder;
@@ -34,13 +34,13 @@ import java.util.concurrent.ExecutionException;
 
 public class AtlasDownloaderImpl implements AtlasDownloader, Runnable {
     //TODO Replace with ITextureFormat
-    private final Map<TextureFormat, CpuTexture.Factory> textureFormats = new HashMap<>();
+    private final Map<GpuFormat, CpuTexture.Factory> textureFormats = new HashMap<>();
     private final ConcurrentHashMap<Id, CompletableFuture<AtlasTexture>> cache = new ConcurrentHashMap<>();
 
     private final TextureManager textureManager = Minecraft.getInstance().getTextureManager();
 
     public AtlasDownloaderImpl() {
-        textureFormats.put(TextureFormat.RGBA8, Rgba8Texture::new);
+        textureFormats.put(GpuFormat.RGBA8_UNORM, Rgba8Texture::new);
         ResourceReloaderListener.add(this);
     }
 
@@ -111,7 +111,7 @@ public class AtlasDownloaderImpl implements AtlasDownloader, Runnable {
             int width = gpuTexture.getWidth(0);
             int height = gpuTexture.getHeight(0);
 
-            int byteSize = gpuTexture.getFormat().pixelSize() * width * height;
+            int byteSize = gpuTexture.getFormat().blockSize() * width * height;
 
             var device = RenderSystem.getDevice();
             CommandEncoder commandEncoder = device.createCommandEncoder();
@@ -124,7 +124,7 @@ public class AtlasDownloaderImpl implements AtlasDownloader, Runnable {
                 );
 
                 commandEncoder.copyTextureToBuffer(gpuTexture, outputBuffer, 0, () -> {
-                    try (var mappedView = commandEncoder.mapBuffer(outputBuffer, true, false); outputBuffer) {
+                    try (var mappedView = outputBuffer.map(true, false); outputBuffer) {
                         IntBuffer buffer = mappedView.data().asIntBuffer();
                         int[] data = new int[byteSize >> 2];
 

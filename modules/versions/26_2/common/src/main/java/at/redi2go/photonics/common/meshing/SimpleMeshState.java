@@ -3,11 +3,11 @@ package at.redi2go.photonics.common.meshing;
 import at.redi2go.photonics.core.rendering.world.block.VoxelColor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColors;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.renderer.block.model.BlockModelPart;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
@@ -21,14 +21,14 @@ public class SimpleMeshState implements McMeshState {
 
     private final Block block;
     private final int blockId;
-    private List<BlockModelPart> blockModel;
+    private List<BlockStateModelPart> blockModel;
 
     private long hashCode = 0;
 
     public SimpleMeshState(
             Block block,
             int blockId,
-            List<BlockModelPart> blockModel
+            List<BlockStateModelPart> blockModel
     ) {
         this.block = block;
         this.blockId = blockId;
@@ -100,12 +100,18 @@ public class SimpleMeshState implements McMeshState {
     ) {
         long hash;
 
-        int tintIndex = bakedQuad.tintIndex();
+        // 26.2 made BakedQuad a record and moved the per-quad material properties, tint index
+        // included, onto MaterialInfo.
+        int tintIndex = bakedQuad.materialInfo().tintIndex();
         if (tintIndex != -1) {
             if (hashStorage.lastTintIndex == tintIndex) {
                 hash = hashStorage.lastTint;
             } else {
-                int tintColor = BLOCK_COLORS.getColor(blockState, blockAndTintGetter, blockPos, tintIndex);
+                // BlockColors.getColor was replaced by a two-step lookup in 26.2: resolve the
+                // tint source for the index, then ask it for the colour at this position.
+                int tintColor = BLOCK_COLORS
+                        .getTintSource(blockState, tintIndex)
+                        .colorInWorld(blockState, blockAndTintGetter, blockPos);
 
                 hashStorage.lastTintIndex = tintIndex;
                 hashStorage.lastTint = tintColor;
@@ -147,7 +153,7 @@ public class SimpleMeshState implements McMeshState {
     }
 
     @Override
-    public List<BlockModelPart> blockModel() {
+    public List<BlockStateModelPart> blockModel() {
         return blockModel;
     }
 
