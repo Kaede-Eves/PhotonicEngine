@@ -36,6 +36,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public class WorldCompiler implements Runnable, RenderingComponent {
     public static final int MAX_SECTIONS_PER_RUN = 48;
 
+    private static final boolean PROFILE_VOXELS = Boolean.getBoolean("photonics.profileLights");
+
     private static final int THREAD_POOL_SIZE = 3;
     private static final ExecutorService THREAD_POOL;
 
@@ -126,6 +128,18 @@ public class WorldCompiler implements Runnable, RenderingComponent {
                     stopUpload();
                     writeSections();
                     awaitUpload();
+
+                    // Opt-in: how long from the block changing to its voxels being on the GPU.
+                    // The light list was measured at 0ms, so if a visible delay remains this is
+                    // where it is -- the geometry the rays trace against, not the light data.
+                    if (PROFILE_VOXELS && !builtSections.isEmpty()) {
+                        long worst = 0L;
+                        for (var b : builtSections)
+                            worst = Math.max(worst, System.nanoTime() - b.createdAtNanos);
+                        Photonics.LOGGER.info(
+                                "voxel upload: {} sections, worst {}ms since the block changed",
+                                builtSections.size(), worst / 1_000_000L);
+                    }
 
                     registry.freeUnusedObjects();
                 }

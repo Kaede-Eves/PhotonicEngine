@@ -85,7 +85,8 @@ public class ChunkCompiler implements Runnable, RenderingComponent {
                 long hash = section.computeSectionHash(level);
                 if (isDuplicateSection(section.pos(), hash)) continue;
 
-                var buildResult = new BuildResult(section.pos(), section.blockPos(), hash, section.priority());
+                var buildResult = new BuildResult(
+                        section.pos(), section.blockPos(), hash, section.priority(), section.createdAtNanos);
 
                 BlockMesher.REGISTRY.setup();
 
@@ -166,6 +167,16 @@ public class ChunkCompiler implements Runnable, RenderingComponent {
 
         private final List<BlockResult> blocks = new ArrayList<>(128);
 
+        /**
+         * When the section this result came from was snapshotted; see SectionCopy.createdAtNanos.
+         *
+         * <p>Carried through from the copy rather than taken here, so a measurement against it
+         * covers the whole path from the block changing to its voxels reaching the GPU -- including
+         * the time the section spent queued ahead of compilation, which is where the queue backs up
+         * under load and is exactly the part worth seeing.
+         */
+        public final long createdAtNanos;
+
         private final AtomicInteger pendingBlocks = new AtomicInteger();
         private final CompletableFuture<Void> future = new CompletableFuture<>();
 
@@ -173,12 +184,14 @@ public class ChunkCompiler implements Runnable, RenderingComponent {
                 Vector3i chunkPos,
                 Vector3i chunkBlockPos,
                 long hash,
-                long priority
+                long priority,
+                long createdAtNanos
         ) {
             this.chunkPos = chunkPos;
             this.chunkBlockPos = chunkBlockPos;
             this.hash = hash;
             this.priority = priority;
+            this.createdAtNanos = createdAtNanos;
         }
 
         public Vector3i chunkPos() {

@@ -15,6 +15,16 @@ public class SectionCopy implements PrioritizedTask, IChunkSection {
     private final IChunkSection copy;
     private final long priority;
 
+    /**
+     * When this snapshot was taken, for the opt-in light latency measurement.
+     *
+     * <p>A section is copied synchronously from Sodium's scheduleRebuild, so this is effectively
+     * the moment the block changed. Comparing it against the point the light data is uploaded
+     * separates delivery latency from denoiser reconvergence, which are the two halves of a
+     * visible delay and want completely different fixes.
+     */
+    public final long createdAtNanos = System.nanoTime();
+
     public SectionCopy(
             Vector3i pos,
             IChunkSection section,

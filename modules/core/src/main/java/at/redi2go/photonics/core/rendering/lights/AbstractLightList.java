@@ -1,5 +1,6 @@
 package at.redi2go.photonics.core.rendering.lights;
 
+import at.redi2go.photonics.core.Photonics;
 import at.redi2go.photonics.api.mc.Id;
 import at.redi2go.photonics.api.mc.Minecraft;
 import at.redi2go.photonics.api.mc.core.IBlockPos;
@@ -36,6 +37,16 @@ import java.util.function.Supplier;
 
 public abstract class AbstractLightList implements Runnable, RenderingComponent {
     private static final int MAX_SECTIONS_PER_RUN = 48;
+
+    /**
+     * Opt-in timing for light updates, enabled with -Dphotonics.profileLights=true.
+     *
+     * <p>Answers the one question worth asking about a visible delay between changing a light and
+     * seeing it: whether the time is spent inside this worker or waiting for a section to arrive
+     * from the chunk rebuild ahead of it. "idle" is how long the worker sat with nothing to do, so
+     * a large idle followed by a small work time means the delay is upstream of Photonics.
+     */
+    private static final boolean PROFILE_LIGHTS = Boolean.getBoolean("photonics.profileLights");
     private static final IBlock BLOCK_LAVA = IBlock.fromIdOrThrow(Id.fromNamespaceAndPath("minecraft", "lava"));
 
     private final Thread compilerThread;
@@ -96,7 +107,9 @@ public abstract class AbstractLightList implements Runnable, RenderingComponent 
             if (Thread.interrupted() && !needsReload) return;
 
             try {
+                long idleStart = PROFILE_LIGHTS ? System.nanoTime() : 0L;
                 sectionQueue.awaitTask();
+                long workStart = PROFILE_LIGHTS ? System.nanoTime() : 0L;
 
                 boolean needsUpload = false;
 
@@ -116,6 +129,16 @@ public abstract class AbstractLightList implements Runnable, RenderingComponent 
                 if (needsUpload) {
                     var newLights = trimLights();
                     storeLights(newLights);
+                }
+
+                if (PROFILE_LIGHTS && needsUpload) {
+                    Photonics.LOGGER.info(
+                            "light update: {} loaded, {} unloaded, idle {}ms, work {}ms",
+                            loadedSections.size(),
+                            unloadedSections.size(),
+                            (workStart - idleStart) / 1_000_000L,
+                            (System.nanoTime() - workStart) / 1_000_000L
+                    );
                 }
             } catch (InterruptedException e) {
                 if (!needsReload) return;
@@ -169,6 +192,11 @@ public abstract class AbstractLightList implements Runnable, RenderingComponent 
             if (sectionHashes.put(section.pos(), sectionHash) == sectionHash) continue;
 
             changed = true;
+            if (PROFILE_LIGHTS)
+                Photonics.LOGGER.info(
+                        "light section changed: delivery {}ms since the block changed",
+                        (System.nanoTime() - section.createdAtNanos) / 1_000_000L
+                );
             var lights = tracedLightPositions.get(section.pos());
             lights.clear();
 

@@ -8,6 +8,15 @@ plugins {
 // wideners from 'official' and fails expecting 'intermediary'.
 loom {
     noIntermediateMappings()
+
+    // Opt-in light latency logging in the dev client: -Pphotonics.profileLights
+    if (project.hasProperty("photonics.profileLights")) {
+        runs {
+            named("client") {
+                vmArg("-Dphotonics.profileLights=true")
+            }
+        }
+    }
 }
 
 
