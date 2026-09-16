@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.Overwrite;
 public interface IRenderSystemImpl {
     @Overwrite
     static IGpuDevice getDevice() {
-        return (IGpuDevice) RenderSystem.getDevice();
+        // 26.2 returns the GpuDevice wrapper; the duck interface is on the backend behind it.
+        return (IGpuDevice) ((GpuDeviceAccessor) RenderSystem.getDevice()).photonics$backend();
     }
 }

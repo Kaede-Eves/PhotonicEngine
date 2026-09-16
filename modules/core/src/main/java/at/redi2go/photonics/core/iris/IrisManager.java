@@ -46,6 +46,26 @@ public class IrisManager {
         return getProperties().orElseThrow();
     }
 
+    /**
+     * Whether Photonics is enabled for the pack currently being loaded.
+     *
+     * <p>Iris builds a pack's include graph before it parses shader.properties, so shader files
+     * are read -- Photonics' own among them -- while {@link #getProperties()} is still empty.
+     * Asking {@link #getPropertiesOrThrow()} at that point throws and Iris reports the pack as
+     * unloadable.
+     *
+     * <p>The answer is already known by then even so. A pack that declares photonics.enabled is
+     * handled by the patcher as natively supported, and one that does not gets the flag forced on
+     * by {@code setProperties} under exactly the condition {@code setupShaderPatcher} recorded --
+     * so the patcher's own decision is the same signal, just available earlier.
+     */
+    public static boolean isPhotonicsEnabled() {
+        return getProperties()
+                .map(PhotonicsProperties::isEnabled)
+                .orElseGet(() -> propertiesManager.isForceEnabled()
+                        || (activePatcher != null && activePatcher.packSupportsPhotonics()));
+    }
+
     public static boolean hasPipeline() {
         return activePipeline != null;
     }

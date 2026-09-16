@@ -54,6 +54,10 @@ public class ShaderPatcher {
         patch = getPatchList().loadPatch(pack).orElse(null);
     }
 
+    public boolean packSupportsPhotonics() {
+        return pack.ph$supportsPhotonics();
+    }
+
     public boolean hasPatch() {
         return patch != null;
     }
@@ -132,7 +136,7 @@ public class ShaderPatcher {
 
                     return shaderSourceSupplier.apply(p);
                 },
-                IrisManager.getPropertiesOrThrow().isEnabled()
+                IrisManager.isPhotonicsEnabled()
         );
 
         return source;
@@ -151,7 +155,7 @@ public class ShaderPatcher {
         return patch.applyPatches(
                 path,
                 shaderSourceSupplier,
-                IrisManager.getPropertiesOrThrow().isEnabled()
+                IrisManager.isPhotonicsEnabled()
         );
     }
 

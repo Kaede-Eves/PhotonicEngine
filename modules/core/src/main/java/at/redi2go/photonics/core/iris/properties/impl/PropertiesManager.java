@@ -51,6 +51,10 @@ public class PropertiesManager implements InvocationHandler {
         this.forceEnabled = forceEnabled;
     }
 
+    public boolean isForceEnabled() {
+        return forceEnabled;
+    }
+
     public void setProperties(@Nullable Properties properties, Logger logger) {
         keys.clear();
         methodLookup.clear();
