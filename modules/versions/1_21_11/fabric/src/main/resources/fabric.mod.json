@@ -10,7 +10,7 @@
   "contact": {
     "sources": "https://github.com/Redi2Go/PhotonicEngine"
   },
-  "license": "All-Rights-Reserved",
+  "license": "LGPL-3.0-only",
   "icon": "assets/photonics/icon.png",
   "environment": "client",
   "entrypoints": {
