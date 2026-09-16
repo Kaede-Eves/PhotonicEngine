@@ -104,3 +104,58 @@ their side it is indistinguishable from a crash. And do not push an
 instrumented build to a client someone is using: raising the heap to 2 GiB to
 measure demand overflowed `Math.toIntExact` and crashed every pipeline
 creation, which looked like a shaderpack-switching bug for several rounds.
+
+## The disabled-Photonics frame rate collapse
+
+Symptom: with a pack that disables Photonics, the client ran at 4 fps. With
+Photonics enabled and ReSTIR selected it ran at 82-118 fps. Same pack, same
+settings.
+
+Cause: Iris calls `preparePipeline` once per frame. `PipelineManagerMixin`
+guarded its setup work with `IrisManager.hasPipeline()`. That is true once a
+pipeline exists, so it works while Photonics is enabled -- but a pack that sets
+`photonics.enabled=false` makes `createPipeline` return null, no pipeline ever
+exists, and the guard never trips. Every frame re-read `ph_lights.json` from the
+shaderpack, rebuilt the whole light configuration and registered another light
+provider.
+
+The fix tracks whether setup has *run*, not whether it *produced* anything, and
+resets that when Iris destroys its pipeline. This is upstream code in
+`modules/core`, so the 1.21.11 module has the same bug.
+
+### How it was found, and how it was nearly missed
+
+Three wrong conclusions came first, all mine, and each was reached by reasoning
+from code rather than measuring:
+
+1. Blamed the shaderpack's own `COLORED_LIGHTING=256`, twice.
+2. Added a startup log proving `no pipeline created`, then claimed that settled
+   it. It did not: proving no pipeline was built is not proving no work was
+   done. The mixins run regardless of pipeline state, which had already been
+   written down as a hypothesis and then dropped.
+3. Called the conclusion "measured, not inferred" while having measured a
+   different proposition than the one being asserted.
+
+What actually settled it was removing the jar from the instance entirely --
+Kaede's suggestion, after twice being told the mod was not involved. One
+variable, 118 fps versus 4.
+
+**Lesson: "component X reports doing nothing" is not evidence that component X
+costs nothing.** Only removing it is. When a user says the same configuration
+behaved differently on another build, that is a report about the build, not
+about their configuration.
+
+### Profiling
+
+Java Flight Recorder settles these in one run, and the dev launcher can carry it:
+
+    -XX:StartFlightRecording=delay=60s,duration=45s,filename=out.jfr,settings=profile
+
+The delay matters -- without it the window closes during world load and captures
+nothing useful. Then:
+
+    jfr summary out.jfr
+    jfr print --events jdk.ObjectAllocationSample --stack-depth 40 out.jfr
+
+The summary showed 291329 GC phase events in 45 seconds, and the allocation
+samples gave the exact stack, with 275 GB attributed to one call site.
