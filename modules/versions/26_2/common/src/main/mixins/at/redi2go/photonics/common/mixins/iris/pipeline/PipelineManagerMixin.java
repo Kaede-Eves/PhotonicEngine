@@ -50,7 +50,10 @@ public abstract class PipelineManagerMixin implements PipelineManagerExt {
 
     @Inject(method = "preparePipeline", at = @At("HEAD"))
     private void preparePipeline(NamespacedId currentDimension, CallbackInfoReturnable<WorldRenderingPipeline> cir) {
-        if (IrisManager.hasPipeline()) return;
+        // Not hasPipeline(): a pack that disables Photonics produces no pipeline, so that test is
+        // never true and everything below -- re-reading ph_lights.json out of the pack and
+        // re-registering the light provider -- reran every single frame.
+        if (IrisManager.isPipelineSetupDone()) return;
 
         //TODO Add to more sensible spot
         BlockMesher.REGISTRY.addDefault(new MinecraftBlockMesher());
@@ -123,6 +126,8 @@ public abstract class PipelineManagerMixin implements PipelineManagerExt {
 
     @Inject(method = "destroyPipeline", at = @At("HEAD"))
     private void destroyEverything(CallbackInfo ci) {
+        IrisManager.onPipelineDestroyed();
+
         if (IrisManager.hasPipeline()) {
             IrisManager.destroyEverything();
             renderers.clear();

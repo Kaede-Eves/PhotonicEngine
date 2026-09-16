@@ -30,6 +30,17 @@ public class IrisManager {
     private static @Nullable PhotonicsProperties activeProperties = null;
     private static @Nullable PhotonicsPipeline activePipeline = null;
 
+    /**
+     * Whether pipeline setup has already run for the current shaderpack, whether or not it produced
+     * a pipeline.
+     *
+     * <p>{@link #hasPipeline()} cannot answer this. Iris calls preparePipeline every frame, and the
+     * caller there skips its work when a pipeline exists -- but a pack that disables Photonics
+     * makes {@link PhotonicsRenderer#createPipeline} return null, so no pipeline ever exists and
+     * the skip never happens. Setup then reruns per frame forever.
+     */
+    private static boolean pipelineSetupDone = false;
+
     public static Optional<ShaderPatcher> getShaderPatcher() {
         return  Optional.ofNullable(activePatcher);
     }
@@ -70,6 +81,23 @@ public class IrisManager {
         return activePipeline != null;
     }
 
+    /**
+     * @return whether pipeline setup has run for the current pack, including when it deliberately
+     * produced no pipeline. Callers that only want to set up once must test this, not
+     * {@link #hasPipeline()}.
+     */
+    public static boolean isPipelineSetupDone() {
+        return pipelineSetupDone;
+    }
+
+    /**
+     * Lets setup run again for the next pack. Called when Iris tears its pipeline down, which
+     * happens on a pack reload even if Photonics never built anything.
+     */
+    public static void onPipelineDestroyed() {
+        pipelineSetupDone = false;
+    }
+
     public static void setupShaderPatcher(@NonNls IrisPack pack, boolean patchEnabled) {
         Objects.requireNonNull(pack, "pack");
 
@@ -99,6 +127,7 @@ public class IrisManager {
         if (activeProperties == null) throw new IllegalStateException("The renderer has not been set up");
         if (activePipeline != null) throw new IllegalStateException("Pipeline has already been created");
         
+        pipelineSetupDone = true;
         activePipeline = PhotonicsRenderer.createPipeline(
                 propertiesManager,
                 atlasDownloaderSupplier,
@@ -179,6 +208,10 @@ public class IrisManager {
     }
 
     private static void destroyEverything(boolean destroyPatcher) {
+        // Before the early return: a pack that produced no pipeline still needs setup to run again
+        // for the next one.
+        pipelineSetupDone = false;
+
         var pipeline = activePipeline;
         if (pipeline == null) return;
 
