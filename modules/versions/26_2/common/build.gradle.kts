@@ -8,6 +8,9 @@ plugins {
 // wideners from 'official' and fails expecting 'intermediary'.
 loom {
     noIntermediateMappings()
+
+    // 26.2 made GlDevice and GlCommandEncoder package-private. See the widener for detail.
+    accessWidenerPath = file("src/main/resources/.accesswidener")
 }
 
 

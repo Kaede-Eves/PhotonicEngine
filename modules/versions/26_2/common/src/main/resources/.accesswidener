@@ -1,0 +1,7 @@
+accessWidener v2 named
+
+# Minecraft 26.2 made these Blaze3D GL classes package-private; they were public in 1.21.11, which
+# is why 1.21.11's widener is empty. Photonics mixes into both to drive its own GL work, so they
+# have to be opened back up or the version layer cannot compile at all.
+accessible	class	com/mojang/blaze3d/opengl/GlDevice
+accessible	class	com/mojang/blaze3d/opengl/GlCommandEncoder
